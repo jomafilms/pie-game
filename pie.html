@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pie Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #pieChart {
+            max-width: 500px;
+            max-height: 500px;
+            position: relative;
+            z-index: 2;
+        }
+        #centerCircle {
+            position: absolute;
+            z-index: 1;
+            cursor: pointer;
+            pointer-events: none;
+            width: 170px;
+            height: 170px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 5px solid white; /* White border */
+        }
+        #centerCircle:hover {
+            opacity: 0.8;
+        }
+        #centerCircle:active {
+            opacity: 0.6;
+        }
+        .film-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;  /* Increased from 80px */
+            height: 120px; /* Increased from 80px */
+            filter: brightness(0) invert(1);
+            z-index: 3;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .film-icon i {
+            font-size: 80px; /* Increased from 48px */
+        }
+        .text-paths {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 500px;
+            z-index: 4;
+            pointer-events: none;
+        }
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px;
+            border-radius: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+            min-width: 220px;
+        }
+        .control-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .control-panel-header:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .control-panel-header h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+        .control-panel-footer {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #555;
+            font-size: 12px;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+        .control-panel-header .game-title {
+            font-size: 12px;
+            margin-top: 3px;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+        .control-panel-header i {
+            transition: transform 0.3s;
+        }
+        .control-panel-header.collapsed i {
+            transform: rotate(-180deg);
+        }
+        .control-panel-content {
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+            max-height: 1000px; /* Set a large enough value to contain all content */
+        }
+        .control-panel-content.collapsed {
+            max-height: 0;
+        }
+        .section-control {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #555;
+        }
+        .control-panel input {
+            width: 100%;
+            margin: 2px 0;
+            padding: 2px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+        }
+        .control-panel label {
+            display: block;
+            margin-top: 3px;
+            font-size: 11px;
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .icon-option {
+            padding: 5px;
+            background: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        .icon-option i {
+            font-size: 18px;
+        }
+        .icon-search {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+        }
+        .icon-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #333;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #555;
+            border-radius: 4px;
+            display: none;
+            z-index: 1001; /* Ensure it's above other controls */
+        }
+        .icon-dropdown.show {
+            display: block;
+        }
+        .icon-dropdown-item {
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #333;
+            color: white;
+        }
+        .icon-dropdown-item:hover {
+            background: #444;
+        }
+        .icon-search-container {
+            position: relative;
+            margin-bottom: 20px;
+            z-index: 1001; /* Ensure container is above other controls */
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .slider-container input[type="range"] {
+            flex: 1;
+        }
+        .percentage-display {
+            min-width: 40px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .color-picker-container {
+            margin-top: 10px;
+        }
+        .game-title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .settings-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .settings-btn {
+            flex: 1;
+            padding: 8px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.3s;
+        }
+        .settings-btn:hover {
+            background: #444;
+        }
+        .settings-btn i {
+            font-size: 14px;
+        }
+        .preset-btn {
+            padding: 5px;
+            background: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .preset-btn:hover {
+            background: #444;
+        }
+        .preset-btn i {
+            font-size: 18px;
+        }
+        .preset-btn span {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        .preset-label {
+            grid-column: 1 / -1;
+            text-align: left;
+            font-size: 11px;
+            opacity: 0.8;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="pieChart"></canvas>
+    <canvas id="centerCircle"></canvas>
+    <div id="debugBox" style="position: absolute; top: 50px; width: 100px; height: 100px; overflow-wrap: break-word; border: 1px solid #ccc; padding: 5px; white-space: normal; display: none;"></div>
+    <div class="film-icon" onclick="startGame()">
+        <i class="fas fa-moon" style="font-size: 80px; color: white;"></i>
+    </div>
+    <svg width="0" height="0">
+        <defs>
+            <path id="curve1" d="M 50,250 A 150,150 0 0,1 350,250" fill="transparent"/>
+            <path id="curve2" d="M 350,250 A 150,150 0 0,1 200,50" fill="transparent"/>
+            <path id="curve3" d="M 200,50 A 150,150 0 0,1 50,250" fill="transparent"/>
+            <!-- Path for text baseline (larger radius) -->
+            <path id="textCircle" d="M 200,200 m 0,-141.006 a 141.006,141.006 0 1,1 0,282.012 a 141.006,141.006 0 1,1 0,-282.012" fill="transparent"/>
+            <!-- Path for actual text (at calculated radius) -->
+            <path id="textCircleOffset" d="M 200,200 m 0,-122.7 a 122.7,122.7 0 1,1 0,245.4 a 122.7,122.7 0 1,1 0,-245.4" fill="transparent"/>
+            <!-- Outward-facing paths -->
+            <path id="textCircleFlipped" d="M 200,200 m 0,-141.006 a 141.006,141.006 0 1,0 0,282.012 a 141.006,141.006 0 1,0 0,-282.012" fill="transparent"/>
+            <path id="textCircleFlippedOffset" d="M 200,200 m 0,-141.006 a 141.006,141.006 0 1,0 0,282.012 a 141.006,141.006 0 1,0 0,-282.012" fill="transparent"/>
+        </defs>
+    </svg>
+    <svg class="text-paths" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" transform="rotate(-90 200 200)">
+        <!-- Debug circles -->
+        <circle cx="200" cy="200" r="122.7" stroke="rgba(255,255,255,0)" fill="none"/>
+        <circle cx="200" cy="200" r="141.006" stroke="rgba(255,255,255,0)" fill="none"/>
+        
+        <text font-size="24" fill="white" font-family="Arial, sans-serif" font-weight="bold" letter-spacing="2">
+            <textPath href="#textCircleOffset" startOffset="77.3%">WHITE</textPath>
+        </text>
+        <text font-size="24" fill="white" font-family="Arial, sans-serif" font-weight="bold" letter-spacing="2">
+            <textPath href="#textCircleFlippedOffset" startOffset="40.1%">CLUBHOUSE</textPath>
+        </text>
+        <text font-size="24" fill="white" font-family="Arial, sans-serif" font-weight="bold" letter-spacing="2">
+            <textPath href="#textCircleOffset" startOffset="11.8%">RABBIT</textPath>
+        </text>
+    </svg>
+    <audio id="beep" src="beep.mp3" preload="auto"></audio>
+    <div id="promptBox" style="position: absolute; top: 150px; width: 100px; text-align: center; display: none;"></div>
+    <div class="control-panel">
+        <div class="control-panel-header collapsed" onclick="toggleControls()">
+            <h2><i class="fas fa-gear"></i> Game Settings</h2>
+            <i class="fas fa-chevron-up"></i>
+        </div>
+        <div class="control-panel-content collapsed">
+            <div class="section-control">
+                <label>Choose Icon</label>
+                <div class="icon-search-container">
+                    <input type="text" class="icon-search" placeholder="Search for any icon...">
+                    <div class="icon-dropdown"></div>
+                </div>
+                <div class="icon-grid">
+                    <div class="icon-option" data-icon="headphones">
+                        <i class="fas fa-headphones"></i>
+                    </div>
+                    <div class="icon-option" data-icon="cat">
+                        <i class="fas fa-cat"></i>
+                    </div>
+                    <div class="icon-option" data-icon="dog">
+                        <i class="fas fa-dog"></i>
+                    </div>
+                    <div class="preset-label">Presets</div>
+                    <div class="preset-btn" onclick="loadPreset('film')">
+                        <i class="fas fa-video"></i>
+                        <span>Film</span>
+                    </div>
+                    <div class="preset-btn" onclick="loadPreset('wrc')">
+                        <i class="fas fa-moon"></i>
+                        <span>WRC</span>
+                    </div>
+                </div>
+            </div>
+            <div class="section-control">
+                <label>Section 1 Position (Top Left)</label>
+                <div class="slider-container">
+                    <input type="range" id="pos1" min="0" max="100" value="77.3" step="0.1">
+                    <span class="percentage-display" id="pos1-value">77.3%</span>
+                </div>
+                <input type="text" id="text1" value="WHITE">
+                <div class="color-picker-container">
+                    <label for="color1">Color:</label>
+                    <input type="color" id="color1" value="#483a5d">
+                </div>
+            </div>
+            <div class="section-control">
+                <label>Section 2 Position (Bottom)</label>
+                <div class="slider-container">
+                    <input type="range" id="pos2" min="0" max="100" value="40.1" step="0.1">
+                    <span class="percentage-display" id="pos2-value">40.1%</span>
+                </div>
+                <input type="text" id="text2" value="CLUBHOUSE">
+                <div class="flip-container">
+                    <input type="checkbox" id="flip2" checked onchange="updateText()">
+                    <label for="flip2">Flip Text Outward</label>
+                </div>
+                <div class="color-picker-container">
+                    <label for="color2">Color:</label>
+                    <input type="color" id="color2" value="#a13c57">
+                </div>
+            </div>
+            <div class="section-control">
+                <label>Section 3 Position (Top Right)</label>
+                <div class="slider-container">
+                    <input type="range" id="pos3" min="0" max="100" value="11.8" step="0.1">
+                    <span class="percentage-display" id="pos3-value">11.8%</span>
+                </div>
+                <input type="text" id="text3" value="RABBIT">
+                <div class="color-picker-container">
+                    <label for="color3">Color:</label>
+                    <input type="color" id="color3" value="#e55d1e">
+                </div>
+            </div>
+            <div class="section-control">
+                <div class="settings-buttons">
+                    <button onclick="downloadSettings()" class="settings-btn">
+                        <i class="fas fa-download"></i> Download Settings
+                    </button>
+                    <label class="settings-btn">
+                        <i class="fas fa-upload"></i> Load Settings
+                        <input type="file" id="settingsFile" accept=".json" style="display: none" onchange="loadSettings(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="control-panel-footer">
+            Press <i class="fas fa-video"></i> to Start
+        </div>
+    </div>
+    <script>
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        
+        // Get initial values from the control panel
+        const initialColor1 = document.getElementById('color1').value;
+        const initialColor2 = document.getElementById('color2').value;
+        const initialColor3 = document.getElementById('color3').value;
+        const initialText1 = document.getElementById('text1').value;
+        const initialText2 = document.getElementById('text2').value;
+        const initialText3 = document.getElementById('text3').value;
+
+        const data = {
+            labels: ['RABBIT', 'CLUBHOUSE', 'WHITE'],
+            datasets: [{
+                data: [33.33, 33.33, 33.34],
+                backgroundColor: ['#e55d1e', '#a13c57', '#483a5d'],
+                hoverBackgroundColor: ['#e55d1e', '#a13c57', '#483a5d']
+            }]
+        };
+        const config = {
+            type: 'pie',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '34%',
+                backgroundColor: '#000000',
+                plugins: {
+                    tooltip: {
+                        enabled: false
+                    },
+                    legend: {
+                        display: false
+                    }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: false
+                }
+            }
+        };
+        const pieChart = new Chart(ctx, config);
+
+        const centerCtx = document.getElementById('centerCircle').getContext('2d');
+        const centerCircle = () => {
+            const canvas = document.getElementById('centerCircle');
+            canvas.width = 170;
+            canvas.height = 170;
+            centerCtx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
+            centerCtx.fillStyle = '#000000';
+            centerCtx.beginPath();
+            centerCtx.arc(85, 85, 85, 0, 2 * Math.PI); // Draw circle with radius 85
+            centerCtx.fill();
+        };
+        centerCircle();
+
+        const playBeep = (frequency) => {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime); // Use specific frequency
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime); // Initial fade-in
+            gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1); // Longer fade-in
+            oscillator.start();
+            setTimeout(() => {
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6); // Longer fade-out
+                setTimeout(() => {
+                    if (audioCtx.state !== 'closed') {
+                        oscillator.stop();
+                        audioCtx.close();
+                    }
+                }, 600); // Delay stop to ensure gain reaches zero
+            }, 300); // Start fade-out 100ms before stopping
+        };
+
+        const playBuzz = () => {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(150, audioCtx.currentTime); // Lower frequency for buzz
+            oscillator.connect(audioCtx.destination);
+            oscillator.start();
+            setTimeout(() => {
+                oscillator.stop();
+                audioCtx.close();
+            }, 500); // Duration for buzz
+        };
+
+        const highlightSegment = (segmentIndex) => {
+            const meta = pieChart.getDatasetMeta(0);
+            const segment = meta.data[segmentIndex];
+            const originalColor = segment.options.backgroundColor;
+            segment.options.backgroundColor = 'rgba(255, 255, 255, 0.5)'; // Bright overlay
+            pieChart.update();
+            // FILMMAKER = 0, CURATOR = 1, FAN = 2
+            const frequencies = [220, 260, 300]; // Different frequencies for each section
+            playBeep(frequencies[segmentIndex]); // Play beep with specific frequency
+            setTimeout(() => {
+                segment.options.backgroundColor = originalColor;
+                pieChart.update();
+            }, 400);
+        };
+
+        let userSequence = [];
+        let expectedSequence = [];
+
+        const displayNextPrompt = () => {
+            const promptBox = document.getElementById('promptBox');
+            promptBox.innerHTML = 'NEXT';
+        };
+
+        const hideNextPrompt = () => {
+            const promptBox = document.getElementById('promptBox');
+            promptBox.innerHTML = '';
+        };
+
+        const flashSequence = () => {
+            expectedSequence.forEach((index, i) => {
+                setTimeout(() => highlightSegment(index), i * 700);
+            });
+            setTimeout(() => {
+                const randomIndex = Math.floor(Math.random() * data.datasets[0].data.length);
+                expectedSequence.push(randomIndex);
+                highlightSegment(randomIndex);
+            }, expectedSequence.length * 700);
+        };
+
+        const startGame = () => {
+            if (expectedSequence.length === 0) {
+                // First click, flash a random section
+                const randomIndex = Math.floor(Math.random() * data.datasets[0].data.length);
+                expectedSequence.push(randomIndex);
+                setTimeout(() => {
+                    highlightSegment(randomIndex);
+                    document.getElementById('centerCircle').style.pointerEvents = 'auto'; // Enable clicks after first flash
+                }, 700);
+            }
+        };
+
+        const resetGame = () => {
+            expectedSequence = [];
+            userSequence = [];
+            console.log('Game reset.');
+        };
+
+        const checkSequence = () => {
+            console.log('User Sequence:', userSequence);
+            console.log('Expected Sequence:', expectedSequence);
+            if (userSequence.join() === expectedSequence.join()) {
+                userSequence = [];
+                displayNextPrompt();
+                setTimeout(flashSequence, 1000); // Computer's turn to flash sequence
+            } else {
+                document.body.style.backgroundColor = 'black';
+                playBuzz(); // Play buzz sound
+                setTimeout(() => {
+                    alert('Game Over. 😅 Try Again!');
+                    resetGame();
+                    location.reload();
+                }, 500);
+            }
+        };
+
+        document.getElementById('centerCircle').onclick = startGame;
+
+        const logClick = (index) => {
+            const debugBox = document.getElementById('debugBox');
+            debugBox.innerHTML += `${index + 1} `; // Append with space instead of line break
+        };
+
+        document.getElementById('pieChart').onclick = (evt) => {
+            hideNextPrompt();
+            const activePoints = pieChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (activePoints.length) {
+                const firstPoint = activePoints[0];
+                const index = firstPoint.index;
+                logClick(index);
+                userSequence.push(index);
+                // Check after each click
+                if (userSequence[userSequence.length - 1] !== expectedSequence[userSequence.length - 1]) {
+                    document.body.style.backgroundColor = 'black';
+                    playBuzz(); // Play buzz sound
+                    setTimeout(() => {
+                        alert('Game Over. 😅 Try Again!');
+                        resetGame();
+                        location.reload();
+                    }, 500);
+                } else {
+                    highlightSegment(index);
+                    if (userSequence.length === expectedSequence.length) {
+                        checkSequence();
+                    }
+                }
+            }
+        };
+
+        // Add text control functionality
+        function updateText() {
+            const texts = document.querySelectorAll('.text-paths text textPath');
+            const debugCircles = document.querySelectorAll('.debug-circle');
+            
+            // Update positions and text content
+            texts[0].setAttribute('startOffset', document.getElementById('pos1').value + '%');
+            texts[0].textContent = document.getElementById('text1').value;
+            
+            texts[1].setAttribute('startOffset', document.getElementById('pos2').value + '%');
+            texts[1].textContent = document.getElementById('text2').value;
+            
+            // Handle flipping for section 2 (CURATOR)
+            const shouldFlip = document.getElementById('flip2').checked;
+            if (shouldFlip) {
+                texts[1].setAttribute('href', '#textCircleFlippedOffset');
+            } else {
+                texts[1].setAttribute('href', '#textCircleOffset');
+            }
+            
+            // Update fan section (text3)
+            texts[2].setAttribute('startOffset', document.getElementById('pos3').value + '%');
+            texts[2].textContent = document.getElementById('text3').value;
+        }
+
+        // Add event listeners to all inputs
+        document.querySelectorAll('.control-panel input').forEach(input => {
+            input.addEventListener('input', updateText);
+        });
+
+        // Update icon selection functionality
+        document.querySelectorAll('.icon-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                const iconName = this.dataset.icon;
+                const centerIcon = document.querySelector('.film-icon');
+                centerIcon.innerHTML = `<i class="fas fa-${iconName}" style="font-size: 80px; color: white;"></i>`;
+                // Update the title with the new icon
+                document.querySelector('.control-panel-footer').innerHTML = `Press <i class="fas fa-${iconName}"></i> to Start`;
+            });
+        });
+
+        // Icon search functionality
+        const iconSearch = document.querySelector('.icon-search');
+        const iconDropdown = document.querySelector('.icon-dropdown');
+
+        // Preset configurations
+        const presets = {
+            film: {
+                icon: 'video',
+                sections: [
+                    {
+                        position: '73',
+                        text: 'FILMMAKER',
+                        color: '#f5342a',
+                        flip: false
+                    },
+                    {
+                        position: '43',
+                        text: 'CURATOR',
+                        color: '#016ad9',
+                        flip: true
+                    },
+                    {
+                        position: '13',
+                        text: 'FAN',
+                        color: '#03af48',
+                        flip: false
+                    }
+                ]
+            },
+            wrc: {
+                icon: 'moon',
+                sections: [
+                    {
+                        position: '77.3',
+                        text: 'WHITE',
+                        color: '#483a5d',
+                        flip: false
+                    },
+                    {
+                        position: '40.1',
+                        text: 'CLUBHOUSE',
+                        color: '#a13c57',
+                        flip: true
+                    },
+                    {
+                        position: '11.8',
+                        text: 'RABBIT',
+                        color: '#e55d1e',
+                        flip: false
+                    }
+                ]
+            }
+        };
+
+        // Common Font Awesome icon categories - organized by type
+        const commonIcons = {
+            media: ['video', 'film', 'camera', 'image', 'tv', 'headphones', 'music', 'microphone'],
+            animals: ['cat', 'dog', 'horse', 'fish', 'bird'],
+            nature: ['sun', 'moon', 'cloud', 'rainbow', 'snowflake', 'tree', 'mountain'],
+            objects: ['heart', 'star', 'circle', 'square', 'triangle', 'diamond', 'car', 'bicycle', 'plane', 'rocket', 'ship'],
+            buildings: ['home', 'building', 'city'],
+            emotions: ['smile', 'laugh', 'wink', 'frown', 'meh'],
+            tools: ['book', 'pencil', 'pen', 'brush', 'palette']
+        };
+
+        // Unified icon update function
+        function updateIcon(iconName) {
+            const centerIcon = document.querySelector('.film-icon');
+            centerIcon.innerHTML = `<i class="fas fa-${iconName}" style="font-size: 80px; color: white;"></i>`;
+            document.querySelector('.control-panel-footer').innerHTML = `Press <i class="fas fa-${iconName}"></i> to Start`;
+        }
+
+        // Unified section update function
+        function updateSection(index, section) {
+            const i = index + 1;
+            document.getElementById(`pos${i}`).value = section.position;
+            document.getElementById(`text${i}`).value = section.text;
+            document.getElementById(`color${i}`).value = section.color;
+            document.getElementById(`pos${i}-value`).textContent = `${section.position}%`;
+            
+            if (i === 2 && 'flip' in section) {
+                document.getElementById('flip2').checked = section.flip;
+            }
+        }
+
+        // Unified update function for all visual elements
+        function updateVisuals() {
+            updateColors();
+            updateText();
+        }
+
+        // Icon search functionality
+        function showIconDropdown(searchTerm) {
+            iconDropdown.innerHTML = '';
+            const allIcons = Object.values(commonIcons).flat();
+            const matchingIcons = allIcons.filter(icon => 
+                icon.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            matchingIcons.forEach(icon => {
+                const item = document.createElement('div');
+                item.className = 'icon-dropdown-item';
+                item.innerHTML = `
+                    <i class="fas fa-${icon}"></i>
+                    <span>${icon}</span>
+                `;
+                item.onclick = () => {
+                    updateIcon(icon);
+                    iconDropdown.classList.remove('show');
+                    iconSearch.value = icon;
+                };
+                iconDropdown.appendChild(item);
+            });
+
+            iconDropdown.classList.add('show');
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.icon-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                updateIcon(this.dataset.icon);
+            });
+        });
+
+        iconSearch.addEventListener('input', (e) => {
+            if (e.target.value.length > 0) {
+                showIconDropdown(e.target.value);
+            } else {
+                iconDropdown.classList.remove('show');
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.icon-search-container')) {
+                iconDropdown.classList.remove('show');
+            }
+        });
+
+        // Update percentage displays when sliders move
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            slider.addEventListener('input', function() {
+                const valueDisplay = document.getElementById(`${this.id}-value`);
+                valueDisplay.textContent = `${this.value}%`;
+            });
+        });
+
+        // Add color change handlers
+        document.getElementById('color1').addEventListener('input', updateVisuals);
+        document.getElementById('color2').addEventListener('input', updateVisuals);
+        document.getElementById('color3').addEventListener('input', updateVisuals);
+
+        function updateColors() {
+            const color1 = document.getElementById('color1').value; // FILMMAKER (top left)
+            const color2 = document.getElementById('color2').value; // CURATOR (bottom)
+            const color3 = document.getElementById('color3').value; // FAN (top right)
+            
+            // Map colors to the correct chart sections:
+            // Chart data order: [FAN, CURATOR, FILMMAKER]
+            // Visual order: [FILMMAKER, CURATOR, FAN]
+            pieChart.data.datasets[0].backgroundColor = [color3, color2, color1];
+            pieChart.data.datasets[0].hoverBackgroundColor = [color3, color2, color1];
+            pieChart.update();
+        }
+
+        // Add control panel toggle functionality
+        function toggleControls() {
+            const header = document.querySelector('.control-panel-header');
+            const content = document.querySelector('.control-panel-content');
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        // Settings management functions
+        function downloadSettings() {
+            const settings = {
+                icon: document.querySelector('.film-icon i').classList[1].replace('fa-', ''),
+                sections: [
+                    {
+                        position: document.getElementById('pos1').value,
+                        text: document.getElementById('text1').value,
+                        color: document.getElementById('color1').value
+                    },
+                    {
+                        position: document.getElementById('pos2').value,
+                        text: document.getElementById('text2').value,
+                        color: document.getElementById('color2').value,
+                        flip: document.getElementById('flip2').checked
+                    },
+                    {
+                        position: document.getElementById('pos3').value,
+                        text: document.getElementById('text3').value,
+                        color: document.getElementById('color3').value
+                    }
+                ]
+            };
+
+            const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pie-settings.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function loadSettings(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const settings = JSON.parse(e.target.result);
+                    
+                    // Update icon
+                    const iconOption = document.querySelector(`.icon-option[data-icon="${settings.icon}"]`);
+                    if (iconOption) {
+                        document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+                        iconOption.classList.add('selected');
+                        updateIcon(settings.icon);
+                    }
+
+                    // Update sections
+                    settings.sections.forEach((section, index) => {
+                        updateSection(index, section);
+                    });
+
+                    // Update all visual elements
+                    updateVisuals();
+                } catch (error) {
+                    alert('Error loading settings: Invalid JSON file');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadPreset(presetName) {
+            const preset = presets[presetName];
+            if (!preset) return;
+
+            // Update icon
+            updateIcon(preset.icon);
+
+            // Update sections
+            preset.sections.forEach((section, index) => {
+                updateSection(index, section);
+            });
+
+            // Update all visual elements
+            updateVisuals();
+        }
+
+        // Initialize the text positions and displays
+        updateVisuals();
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            const valueDisplay = document.getElementById(`${slider.id}-value`);
+            valueDisplay.textContent = `${slider.value}%`;
+        });
+    </script>
+</body>
+</html>
