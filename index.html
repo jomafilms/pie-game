@@ -417,6 +417,123 @@
     <script>
         const ctx = document.getElementById('pieChart').getContext('2d');
         
+        // Create a single audio context for the entire game
+        let audioCtx = null;
+        let activeOscillators = new Set();
+        
+        // Initialize audio context on first user interaction
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        const playBeep = (frequency) => {
+            try {
+                initAudioContext();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
+                
+                oscillator.start();
+                activeOscillators.add(oscillator);
+                
+                setTimeout(() => {
+                    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+                    setTimeout(() => {
+                        if (oscillator && activeOscillators.has(oscillator)) {
+                            oscillator.stop();
+                            activeOscillators.delete(oscillator);
+                        }
+                    }, 600);
+                }, 300);
+            } catch (error) {
+                console.error('Error playing beep:', error);
+            }
+        };
+
+        const playBuzz = () => {
+            try {
+                initAudioContext();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
+                
+                oscillator.start();
+                activeOscillators.add(oscillator);
+                
+                setTimeout(() => {
+                    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+                    setTimeout(() => {
+                        if (oscillator && activeOscillators.has(oscillator)) {
+                            oscillator.stop();
+                            activeOscillators.delete(oscillator);
+                        }
+                    }, 600);
+                }, 300);
+            } catch (error) {
+                console.error('Error playing buzz:', error);
+            }
+        };
+
+        // Clean up all oscillators when game ends
+        const cleanupAudio = () => {
+            activeOscillators.forEach(oscillator => {
+                try {
+                    oscillator.stop();
+                } catch (error) {
+                    console.error('Error stopping oscillator:', error);
+                }
+            });
+            activeOscillators.clear();
+        };
+
+        // Modify the game over handler to clean up audio
+        const handleGameOver = () => {
+            document.body.style.backgroundColor = 'black';
+            playBuzz();
+            setTimeout(() => {
+                cleanupAudio();
+                alert('Game Over. 😅 Try Again!');
+                resetGame();
+                location.reload();
+            }, 500);
+        };
+
+        // Update the click handler to use the new game over handler
+        document.getElementById('pieChart').onclick = (evt) => {
+            hideNextPrompt();
+            const activePoints = pieChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (activePoints.length) {
+                const firstPoint = activePoints[0];
+                const index = firstPoint.index;
+                logClick(index);
+                userSequence.push(index);
+                if (userSequence[userSequence.length - 1] !== expectedSequence[userSequence.length - 1]) {
+                    handleGameOver();
+                } else {
+                    highlightSegment(index);
+                    if (userSequence.length === expectedSequence.length) {
+                        checkSequence();
+                    }
+                }
+            }
+        };
+
         // Get initial values from the control panel
         const initialColor1 = document.getElementById('color1').value;
         const initialColor2 = document.getElementById('color2').value;
@@ -469,41 +586,6 @@
             centerCtx.fill();
         };
         centerCircle();
-
-        const playBeep = (frequency) => {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime); // Use specific frequency
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime); // Initial fade-in
-            gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1); // Longer fade-in
-            oscillator.start();
-            setTimeout(() => {
-                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6); // Longer fade-out
-                setTimeout(() => {
-                    if (audioCtx.state !== 'closed') {
-                        oscillator.stop();
-                        audioCtx.close();
-                    }
-                }, 600); // Delay stop to ensure gain reaches zero
-            }, 300); // Start fade-out 100ms before stopping
-        };
-
-        const playBuzz = () => {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(150, audioCtx.currentTime); // Lower frequency for buzz
-            oscillator.connect(audioCtx.destination);
-            oscillator.start();
-            setTimeout(() => {
-                oscillator.stop();
-                audioCtx.close();
-            }, 500); // Duration for buzz
-        };
 
         const highlightSegment = (segmentIndex) => {
             const meta = pieChart.getDatasetMeta(0);
@@ -585,32 +667,6 @@
         const logClick = (index) => {
             const debugBox = document.getElementById('debugBox');
             debugBox.innerHTML += `${index + 1} `; // Append with space instead of line break
-        };
-
-        document.getElementById('pieChart').onclick = (evt) => {
-            hideNextPrompt();
-            const activePoints = pieChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-            if (activePoints.length) {
-                const firstPoint = activePoints[0];
-                const index = firstPoint.index;
-                logClick(index);
-                userSequence.push(index);
-                // Check after each click
-                if (userSequence[userSequence.length - 1] !== expectedSequence[userSequence.length - 1]) {
-                    document.body.style.backgroundColor = 'black';
-                    playBuzz(); // Play buzz sound
-                    setTimeout(() => {
-                        alert('Game Over. 😅 Try Again!');
-                        resetGame();
-                        location.reload();
-                    }, 500);
-                } else {
-                    highlightSegment(index);
-                    if (userSequence.length === expectedSequence.length) {
-                        checkSequence();
-                    }
-                }
-            }
         };
 
         // Add text control functionality
